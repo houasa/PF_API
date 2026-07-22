@@ -12,12 +12,12 @@ Status legend: 🔴 open · 🟡 proposed · 🟢 decided
 
 ---
 
-## M1 — Money representation mismatch 🔴
+## M1 — Money representation mismatch 🟢 DECIDED
 - **New Business spec:** `long …Minor` — integer **minor units (cents)**, no binary float.
 - **In-Force Y1 spec:** `Money` (BigDecimal-backed); rounding mode/scale from config (IFY1-A2).
 - **Core architecture doc mandate:** `java.math.BigDecimal` + a project `Money` type; "no binary floating point anywhere in the money path"; rounding mode and scale declared in product configuration.
 - **Why it matters:** the engine does daily-compound intermediates (`(1+r)^(days/365)`, participation × growth). Integer cents cannot carry sub-cent precision through those steps → accumulated rounding error. BigDecimal-backed `Money` at full internal precision, rounded to the cent only when booked, is the architecture's intent.
-- **Proposed resolution:** single `Money` type (BigDecimal-backed, configurable scale/rounding) across both domains; minor-units `long` used only at the API/DTO boundary if needed, converted at the edge. See precision note in `precision-money-vs-bigdecimal.md`.
+- **DECISION (2026-07-22, user):** use a single **BigDecimal-backed `Money`** type across both domains, with scale/rounding from product configuration (never literals). Carry full precision internally; round to the cent only at ledger booking / display. Integer `long` minor units are permitted **only** as an API/DTO wire format (e.g. New Business `amountMinor`), converted to `Money` at the service boundary before any math. Rationale in `precision-money-vs-bigdecimal.md`.
 
 ## M2 — `GlwbOption` enum naming mismatch 🔴
 - **New Business spec:** `GlwbOption { OPT1, OPT2, OPT3 }`
