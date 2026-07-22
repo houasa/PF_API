@@ -25,6 +25,32 @@ Status legend: 🔴 open · 🟡 proposed · 🟢 decided
 - Same three options (OPT1=GLN, OPT2=GLS, OPT3=GLC). FRDs and product docs use the form codes GLN/GLS/GLC.
 - **DECISION (2026-07-22, user):** unify on `GlwbOption { GLN, GLS, GLC }` (matches the filed form codes). If the inbound TX103 wire format carries OPT1/2/3, map it to GLN/GLS/GLC at the ingest boundary — the domain enum is GLN/GLS/GLC everywhere internally.
 
+## M4 — Toolchain: Java 25 (architecture) vs JDK 21 (environment) 🟡
+- Architecture mandates **Java 25**; the build environment has **JDK 21**.
+- Skeleton builds with `maven.compiler.release = 21` (Spring Boot 3.4.x supports 21).
+- **Action:** realign to Java 25 when a JDK 25 toolchain is available (bump the
+  parent `maven.compiler.release`).
+
+## M5 — Rules representation: OpenL spike vs Decision B1 🟡 SPIKING
+- Architecture **Decision B1** chose typed config + plain Java evaluators and
+  rejected embedded rules engines (Drools/KIE; OpenL is the same category).
+- **User direction (2026-07-22):** spike **OpenL Tablets** on the simplest op
+  before committing. Implemented in the walking skeleton: `computePremiumBonus`
+  is backed by an OpenL **Spreadsheet** table (`product-engine/.../rules/PremiumBonus.xlsx`).
+- **Spike outcome so far (positive):**
+  - Computes the FRD worked example correctly ($231,000 → bonus $18,480 → AV $249,480).
+  - Confirmed **BigDecimal** arithmetic (M1 honored) — engine asserts the OpenL
+    result type is `BigDecimal`, not `double`; wire value `18480.0000`.
+  - `SpreadsheetResult` rows map cleanly to `CalculationTrace.intermediateFigures`.
+  - Authoring note: leading-`=` step cells must be stored as **text** in the
+    `.xlsx` (openpyxl otherwise writes an Excel formula whose cached value is null
+    and OpenL reads null). Generator forces `data_type='s'`.
+  - `ProductEngine` interface stays plain, so the OpenL impl (`OpenlProductEngine`)
+    is swappable for a plain-Java impl with zero `pas-api` change if the spike is
+    rejected at scale.
+- **Still open:** whether OpenL earns its keep across all ops (ergonomics/weight
+  vs plain Java); this is a per-op-scaling decision, not settled by one op.
+
 ## M3 — Per-domain PE-n numbering collision 🟡
 - Both specs number calls `PE-1…PE-n` scoped to their own domain (e.g. NB PE-1 = `resolveProductConfigVersion`, IFY1 PE-1 = `computeRiderCharge`).
 - Not a code bug, but ambiguous in conversation/traceability.
