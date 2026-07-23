@@ -20,29 +20,27 @@ class ContractDataModelMigrationTest {
     private JdbcTemplate jdbc;
 
     @Test
-    void migrationCreatesAllErdTables() {
+    void migrationCreatesAllErdTablesAcrossModuleSchemas() {
         Integer tableCount = jdbc.queryForObject(
                 "SELECT count(*) FROM information_schema.tables "
-                        + "WHERE table_type = 'BASE TABLE' AND UPPER(table_schema) = 'PUBLIC' "
-                        + "AND UPPER(table_name) <> 'FLYWAY_SCHEMA_HISTORY'",
+                        + "WHERE table_type = 'BASE TABLE' AND LOWER(table_schema) IN "
+                        + "('product_config','newbusiness','policy','servicing','anniversary')",
                 Integer.class);
-        assertEquals(34, tableCount, "ERD defines 34 tables");
+        assertEquals(34, tableCount, "ERD defines 34 tables across the 5 module schemas");
     }
 
     @Test
-    void representativeTablesFromEachTierExist() {
-        // base / system
-        assertTrue(rowCount("policy") >= 0);
-        assertTrue(rowCount("party") >= 0);
-        assertTrue(rowCount("policy_glwb") >= 0);
-        assertTrue(rowCount("product_config") >= 0);
-        // In-Force Year 1
-        assertTrue(rowCount("additional_premium") >= 0);
-        assertTrue(rowCount("contract_year_closing_state") >= 0);
-        // First-Year Anniversary
-        assertTrue(rowCount("anniversary_run") >= 0);
-        assertTrue(rowCount("indexed_term") >= 0);
-        assertTrue(rowCount("payout_simulation") >= 0);
+    void representativeTablesFromEachModuleSchemaExist() {
+        assertTrue(rowCount("product_config.product_config") >= 0);   // product-engine
+        assertTrue(rowCount("newbusiness.nb_submission") >= 0);       // pas-newbusiness
+        assertTrue(rowCount("policy.policy") >= 0);                   // pas-policy
+        assertTrue(rowCount("policy.party") >= 0);
+        assertTrue(rowCount("policy.policy_glwb") >= 0);
+        assertTrue(rowCount("servicing.additional_premium") >= 0);   // pas-servicing (In-Force)
+        assertTrue(rowCount("servicing.contract_year_closing_state") >= 0);
+        assertTrue(rowCount("anniversary.anniversary_run") >= 0);    // pas-anniversary
+        assertTrue(rowCount("anniversary.indexed_term") >= 0);
+        assertTrue(rowCount("anniversary.payout_simulation") >= 0);
     }
 
     private int rowCount(String table) {

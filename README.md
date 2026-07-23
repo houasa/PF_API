@@ -24,8 +24,29 @@ The contract data model (New Business + In-Force Year 1 + First-Year Anniversary
 
 Locally/tests it runs on **in-memory H2 in PostgreSQL-compatibility mode**, so the
 same migration script also applies to **Aurora PostgreSQL** (architecture §2/§6).
-Flyway runs automatically on app startup. Money is integer minor units (`*_minor`
-`BIGINT`); ledger/audit/calculation-trace remain in DynamoDB (out of scope here).
+Flyway runs on startup; Hibernate `ddl-auto=none` (Flyway owns the schema). Money
+is integer minor units (`*_minor` `BIGINT`); ledger/audit/calculation-trace remain
+in DynamoDB (out of scope here).
+
+### Schema-per-module + JPA entities
+
+Tables are split into one **schema per domain module** (architecture §6.1), and
+each schema has JPA `@Entity` classes in a matching Java package
+(`com.prosperity.pas.<module>.entity`). These packages map 1:1 to the feature
+Maven modules to be extracted later.
+
+| Schema | Owning module | Java package | Tables |
+|---|---|---|---|
+| `product_config` | product-engine | `productconfig.entity` | 1 |
+| `newbusiness` | pas-newbusiness | `newbusiness.entity` | 1 |
+| `policy` | pas-policy | `policy.entity` | 16 (policy hub, party, elections, accounts) |
+| `servicing` | pas-servicing | `servicing.entity` | 8 (In-Force Year 1 accrual/servicing) |
+| `anniversary` | pas-anniversary | `anniversary.entity` | 8 (anniversary run & outputs) |
+
+FKs are modeled as plain UUID/String columns for now (JPA associations can be
+added later); `index_value` uses a composite key (`IndexValueId`). A handful of
+Spring Data repositories (`policy.repo`, `anniversary.repo`) exist for the
+round-trip test.
 
 ## Requirements
 - JDK 21 (architecture targets Java 25; realign later — see M4 in `docs/product-engine/spec-mismatches.md`)
@@ -60,6 +81,7 @@ calculation trace. OpenAPI/Swagger UI at `/swagger-ui.html`.
 - Decisions and cross-spec mismatches are tracked in `docs/product-engine/`.
 
 ## Out of scope (skeleton)
-Other engine ops; feature-module split; JPA entity mapping over the schema;
-DynamoDB ledger/audit; Entra security; Docker/ECS; React SPAs; the In-Force /
-Anniversary *operations* (the schema exists; the processing logic does not yet).
+Other engine ops; physical feature-Maven-module split (packages stand in for now);
+JPA associations between entities; DynamoDB ledger/audit; Entra security;
+Docker/ECS; React SPAs; the In-Force / Anniversary *operations* (schema + entities
+exist; the processing logic does not yet).

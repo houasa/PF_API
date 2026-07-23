@@ -1,15 +1,29 @@
 -- Prosperity PathWay Max — Contract Data Model
 -- New Business + In-Force Year 1 + First-Year Anniversary (per ERD).
 -- Portable DDL: runs on H2 (PostgreSQL mode) locally and Aurora PostgreSQL.
+--
+-- Schema-per-module (architecture §6.1): each domain module owns its schema.
+--   product_config  → product-engine   (versioned product definition)
+--   newbusiness     → pas-newbusiness   (inbound TX103 submission)
+--   policy          → pas-policy        (system of record: policy, parties, elections, accounts)
+--   servicing       → pas-servicing     (In-Force Year 1 accrual & servicing state)
+--   anniversary     → pas-anniversary   (First-Year Anniversary run & outputs)
+--
 -- Money is integer minor units (BIGINT, *_minor); rates/percents are NUMERIC.
 -- Ledger, audit, and calculation trace live in DynamoDB and are out of scope here.
 -- Tables are created in dependency order so inline FK references resolve.
 
+CREATE SCHEMA IF NOT EXISTS product_config;
+CREATE SCHEMA IF NOT EXISTS newbusiness;
+CREATE SCHEMA IF NOT EXISTS policy;
+CREATE SCHEMA IF NOT EXISTS servicing;
+CREATE SCHEMA IF NOT EXISTS anniversary;
+
 -- =====================================================================
--- Base / system-derived
+-- product_config schema  (owner: product-engine)
 -- =====================================================================
 
-CREATE TABLE product_config (
+CREATE TABLE product_config.product_config (
     config_version               VARCHAR(64) PRIMARY KEY,
     product_id                   VARCHAR(64),
     rates_caps_participation     TEXT,
@@ -21,7 +35,11 @@ CREATE TABLE product_config (
     eligibility_rules            TEXT
 );
 
-CREATE TABLE nb_submission (
+-- =====================================================================
+-- newbusiness schema  (owner: pas-newbusiness)
+-- =====================================================================
+
+CREATE TABLE newbusiness.nb_submission (
     submission_id               UUID PRIMARY KEY,
     trans_ref_guid              VARCHAR(64),
     trans_type                  VARCHAR(16),
@@ -44,7 +62,11 @@ CREATE TABLE nb_submission (
     associated_firm_id          VARCHAR(64)
 );
 
-CREATE TABLE party (
+-- =====================================================================
+-- policy schema  (owner: pas-policy — system of record)
+-- =====================================================================
+
+CREATE TABLE policy.party (
     party_id          UUID PRIMARY KEY,
     party_type_code   VARCHAR(16),          -- Person / Org
     full_name         VARCHAR(256),
@@ -59,10 +81,10 @@ CREATE TABLE party (
     org_form          VARCHAR(64)
 );
 
-CREATE TABLE policy (
+CREATE TABLE policy.policy (
     policy_id                    UUID PRIMARY KEY,
-    submission_id                UUID REFERENCES nb_submission (submission_id),
-    config_version               VARCHAR(64) REFERENCES product_config (config_version),
+    submission_id                UUID REFERENCES newbusiness.nb_submission (submission_id),
+    config_version               VARCHAR(64) REFERENCES product_config.product_config (config_version),
     pol_number                   VARCHAR(64),   -- contract number
     holding_type_code            VARCHAR(32),
     holding_status               VARCHAR(32),
@@ -91,18 +113,18 @@ CREATE TABLE policy (
     gmcsv_minor                  BIGINT         -- IF
 );
 
-CREATE TABLE party_role (
+CREATE TABLE policy.party_role (
     role_id             UUID PRIMARY KEY,
-    policy_id           UUID NOT NULL REFERENCES policy (policy_id),
-    party_id            UUID NOT NULL REFERENCES party (party_id),
+    policy_id           UUID NOT NULL REFERENCES policy.policy (policy_id),
+    party_id            UUID NOT NULL REFERENCES policy.party (party_id),
     relation_role_code  VARCHAR(32),
     interest_percent    NUMERIC(9,4),
     irrevocable_flag    BOOLEAN            -- IF
 );
 
-CREATE TABLE party_address (
+CREATE TABLE policy.party_address (
     address_id          UUID PRIMARY KEY,
-    party_id            UUID NOT NULL REFERENCES party (party_id),
+    party_id            UUID NOT NULL REFERENCES policy.party (party_id),
     address_type_code   VARCHAR(16),       -- Home / Mailing
     line1               VARCHAR(256),
     city                VARCHAR(128),
@@ -111,73 +133,73 @@ CREATE TABLE party_address (
     address_country_tc  VARCHAR(8)
 );
 
-CREATE TABLE party_phone (
+CREATE TABLE policy.party_phone (
     phone_id         UUID PRIMARY KEY,
-    party_id         UUID NOT NULL REFERENCES party (party_id),
+    party_id         UUID NOT NULL REFERENCES policy.party (party_id),
     phone_type_code  VARCHAR(16),
     area_code        VARCHAR(8),
     dial_number      VARCHAR(32)
 );
 
-CREATE TABLE party_email (
+CREATE TABLE policy.party_email (
     email_id     UUID PRIMARY KEY,
-    party_id     UUID NOT NULL REFERENCES party (party_id),
+    party_id     UUID NOT NULL REFERENCES policy.party (party_id),
     email_type   VARCHAR(16),
     addr_line    VARCHAR(256)
 );
 
-CREATE TABLE producer_of_record (
+CREATE TABLE policy.producer_of_record (
     producer_row_id             UUID PRIMARY KEY,
-    party_id                    UUID NOT NULL REFERENCES party (party_id),
+    party_id                    UUID NOT NULL REFERENCES policy.party (party_id),
     nipr_number                 VARCHAR(32),
     company_producer_id         VARCHAR(64),   -- agent number
     company_producer_id_source  VARCHAR(32),
     carrier_appt_type_code      VARCHAR(32)
 );
 
-CREATE TABLE elected_rider (
+CREATE TABLE policy.elected_rider (
     id            UUID PRIMARY KEY,
-    policy_id     UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id     UUID NOT NULL REFERENCES policy.policy (policy_id),
     rider_code    VARCHAR(32),
     description   VARCHAR(256),
     feature_name  VARCHAR(128)
 );
 
-CREATE TABLE elected_allocation (
+CREATE TABLE policy.elected_allocation (
     id           UUID PRIMARY KEY,
-    policy_id    UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id    UUID NOT NULL REFERENCES policy.policy (policy_id),
     invest_type  VARCHAR(32),
     base_rate    NUMERIC(18,6)
 );
 
-CREATE TABLE elected_allocation_line (
+CREATE TABLE policy.elected_allocation_line (
     id             UUID PRIMARY KEY,
-    allocation_id  UUID NOT NULL REFERENCES elected_allocation (id),
+    allocation_id  UUID NOT NULL REFERENCES policy.elected_allocation (id),
     product_code   VARCHAR(64),
     transfer_pct   NUMERIC(9,4)
 );
 
-CREATE TABLE financial_activity (
+CREATE TABLE policy.financial_activity (
     id                 UUID PRIMARY KEY,
-    policy_id          UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id          UUID NOT NULL REFERENCES policy.policy (policy_id),
     fin_activity_type  VARCHAR(32),
     payment_form       VARCHAR(32),
     payment_amt        NUMERIC(18,2),
     payment_method     VARCHAR(32)
 );
 
-CREATE TABLE form_instance (
+CREATE TABLE policy.form_instance (
     id                       UUID PRIMARY KEY,
-    policy_id                UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id                UUID NOT NULL REFERENCES policy.policy (policy_id),
     document_control_number  VARCHAR(64),
     document_control_type    VARCHAR(32),
     provider_form_number     VARCHAR(64),
     original_input_mode      VARCHAR(32)
 );
 
-CREATE TABLE form_response (
+CREATE TABLE policy.form_response (
     id                UUID PRIMARY KEY,
-    form_instance_id  UUID NOT NULL REFERENCES form_instance (id),
+    form_instance_id  UUID NOT NULL REFERENCES policy.form_instance (id),
     question_number   VARCHAR(32),
     question_text     VARCHAR(512),
     question_type     VARCHAR(32),
@@ -186,9 +208,9 @@ CREATE TABLE form_response (
     response_data     TEXT
 );
 
-CREATE TABLE policy_glwb (
+CREATE TABLE policy.policy_glwb (
     id                           UUID PRIMARY KEY,
-    policy_id                    UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id                    UUID NOT NULL REFERENCES policy.policy (policy_id),
     elected_option               VARCHAR(8),        -- GLN / GLS / GLC (via rider)
     income_base_minor            BIGINT,
     payout_basis                 VARCHAR(8),        -- SINGLE / JOINT
@@ -196,29 +218,29 @@ CREATE TABLE policy_glwb (
     income_base_principal_minor  BIGINT             -- IF (GLS)
 );
 
-CREATE TABLE free_look (
+CREATE TABLE policy.free_look (
     id           UUID PRIMARY KEY,
-    policy_id    UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id    UUID NOT NULL REFERENCES policy.policy (policy_id),
     window_days  INTEGER,
     starts_on    DATE,
     ends_on      DATE
 );
 
-CREATE TABLE policy_account (
+CREATE TABLE policy.policy_account (
     account_id     UUID PRIMARY KEY,
-    policy_id      UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id      UUID NOT NULL REFERENCES policy.policy (policy_id),
     account_key    VARCHAR(64),
     balance_minor  BIGINT,
     account_type   VARCHAR(16)        -- IF: FIXED / INDEXED
 );
 
 -- =====================================================================
--- In-Force Year 1 extension
+-- servicing schema  (owner: pas-servicing — In-Force Year 1)
 -- =====================================================================
 
-CREATE TABLE additional_premium (
+CREATE TABLE servicing.additional_premium (
     receivable_id                  UUID PRIMARY KEY,
-    policy_id                      UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id                      UUID NOT NULL REFERENCES policy.policy (policy_id),
     amount_minor                   BIGINT,
     funding_type                   VARCHAR(16),   -- CASH / 1035 / ROLLOVER / TRANSFER
     received_date                  DATE,
@@ -232,9 +254,9 @@ CREATE TABLE additional_premium (
     calc_version                   VARCHAR(64)
 );
 
-CREATE TABLE pending_reallocation (
+CREATE TABLE servicing.pending_reallocation (
     instruction_id           UUID PRIMARY KEY,
-    policy_id                UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id                UUID NOT NULL REFERENCES policy.policy (policy_id),
     mode                     VARCHAR(16),   -- PRESET / CUSTOM
     preset_model             VARCHAR(16),   -- GROWTH / BALANCED / CONSERVATIVE
     auto_rebalance           BOOLEAN,
@@ -245,16 +267,16 @@ CREATE TABLE pending_reallocation (
     calc_version             VARCHAR(64)
 );
 
-CREATE TABLE pending_reallocation_line (
+CREATE TABLE servicing.pending_reallocation_line (
     id              UUID PRIMARY KEY,
-    instruction_id  UUID NOT NULL REFERENCES pending_reallocation (instruction_id),
+    instruction_id  UUID NOT NULL REFERENCES servicing.pending_reallocation (instruction_id),
     account_key     VARCHAR(64),           -- account_key / product_code
     target_pct      NUMERIC(9,4)
 );
 
-CREATE TABLE rider_charge (
+CREATE TABLE servicing.rider_charge (
     charge_id                   UUID PRIMARY KEY,
-    policy_id                   UUID NOT NULL REFERENCES policy (policy_id),
+    policy_id                   UUID NOT NULL REFERENCES policy.policy (policy_id),
     charge_date                 DATE,          -- inception or anniversary
     charge_rate                 NUMERIC(9,6),
     income_base_at_charge_minor BIGINT,
@@ -262,20 +284,20 @@ CREATE TABLE rider_charge (
     calc_version                VARCHAR(64)
 );
 
-CREATE TABLE fixed_interest_tranche (
+CREATE TABLE servicing.fixed_interest_tranche (
     tranche_id       UUID PRIMARY KEY,
-    policy_id        UUID NOT NULL REFERENCES policy (policy_id),
-    receivable_id    UUID REFERENCES additional_premium (receivable_id),   -- null = opening
+    policy_id        UUID NOT NULL REFERENCES policy.policy (policy_id),
+    receivable_id    UUID REFERENCES servicing.additional_premium (receivable_id),   -- null = opening
     principal_minor  BIGINT,
     declared_rate    NUMERIC(9,6),
     start_date       DATE,
     source           VARCHAR(16)        -- OPENING / ADDL_PREMIUM
 );
 
-CREATE TABLE income_base_segment (
+CREATE TABLE servicing.income_base_segment (
     segment_id          UUID PRIMARY KEY,
-    policy_id           UUID NOT NULL REFERENCES policy (policy_id),
-    receivable_id       UUID REFERENCES additional_premium (receivable_id),  -- null = opening
+    policy_id           UUID NOT NULL REFERENCES policy.policy (policy_id),
+    receivable_id       UUID REFERENCES servicing.additional_premium (receivable_id),  -- null = opening
     segment_start_date  DATE,
     method              VARCHAR(16),       -- COMPOUND / SIMPLE
     roll_up_rate        NUMERIC(9,6),
@@ -284,20 +306,20 @@ CREATE TABLE income_base_segment (
     source              VARCHAR(16)
 );
 
-CREATE TABLE gmcsv_tranche (
+CREATE TABLE servicing.gmcsv_tranche (
     tranche_id             UUID PRIMARY KEY,
-    policy_id              UUID NOT NULL REFERENCES policy (policy_id),
-    receivable_id          UUID REFERENCES additional_premium (receivable_id),  -- null = initial
+    policy_id              UUID NOT NULL REFERENCES policy.policy (policy_id),
+    receivable_id          UUID REFERENCES servicing.additional_premium (receivable_id),  -- null = initial
     premium_tranche_minor  BIGINT,
     receipt_date           DATE,
     gmcsv_pct              NUMERIC(9,6),      -- 0.875
     gmcsv_rate             NUMERIC(9,6)       -- 0.03
 );
 
-CREATE TABLE contract_year_closing_state (
+CREATE TABLE servicing.contract_year_closing_state (
     id                            UUID PRIMARY KEY,
-    policy_id                     UUID NOT NULL REFERENCES policy (policy_id),
-    pending_instruction_id        UUID REFERENCES pending_reallocation (instruction_id),  -- nullable
+    policy_id                     UUID NOT NULL REFERENCES policy.policy (policy_id),
+    pending_instruction_id        UUID REFERENCES servicing.pending_reallocation (instruction_id),  -- nullable
     as_of_date                    DATE,          -- contract anniversary
     accumulation_value_minor      BIGINT,
     fixed_account_value_minor     BIGINT,
@@ -309,10 +331,10 @@ CREATE TABLE contract_year_closing_state (
 );
 
 -- =====================================================================
--- First-Year Anniversary extension
+-- anniversary schema  (owner: pas-anniversary — First-Year Anniversary)
 -- =====================================================================
 
-CREATE TABLE index_value (
+CREATE TABLE anniversary.index_value (
     index_id        VARCHAR(64),
     business_date   DATE,
     close_value     NUMERIC(18,6),
@@ -322,10 +344,10 @@ CREATE TABLE index_value (
     PRIMARY KEY (index_id, business_date)
 );
 
-CREATE TABLE anniversary_run (
+CREATE TABLE anniversary.anniversary_run (
     run_id           UUID PRIMARY KEY,
-    policy_id        UUID NOT NULL REFERENCES policy (policy_id),
-    snapshot_id      UUID REFERENCES contract_year_closing_state (id),
+    policy_id        UUID NOT NULL REFERENCES policy.policy (policy_id),
+    snapshot_id      UUID REFERENCES servicing.contract_year_closing_state (id),
     anniversary_date DATE,          -- effective D
     execution_date   DATE,          -- D+1
     status           VARCHAR(16),   -- PENDING / RUNNING / DONE / FAILED / QUARANTINED
@@ -335,18 +357,18 @@ CREATE TABLE anniversary_run (
     calc_version     VARCHAR(64)
 );
 
-CREATE TABLE anniversary_run_step (
+CREATE TABLE anniversary.anniversary_run_step (
     step_id       UUID PRIMARY KEY,
-    run_id        UUID NOT NULL REFERENCES anniversary_run (run_id),
+    run_id        UUID NOT NULL REFERENCES anniversary.anniversary_run (run_id),
     step_code     VARCHAR(16),      -- PAS-2 … PAS-9
     status        VARCHAR(16),      -- PENDING / DONE / FAILED
     completed_at  TIMESTAMP
 );
 
-CREATE TABLE year_close_reconciliation (
+CREATE TABLE anniversary.year_close_reconciliation (
     recon_id                   UUID PRIMARY KEY,
-    policy_id                  UUID NOT NULL REFERENCES policy (policy_id),
-    run_id                     UUID NOT NULL REFERENCES anniversary_run (run_id),
+    policy_id                  UUID NOT NULL REFERENCES policy.policy (policy_id),
+    run_id                     UUID NOT NULL REFERENCES anniversary.anniversary_run (run_id),
     anniversary_date           DATE,
     pre_av_minor               BIGINT,
     post_av_minor              BIGINT,
@@ -355,10 +377,10 @@ CREATE TABLE year_close_reconciliation (
     status                     VARCHAR(24)
 );
 
-CREATE TABLE indexed_term (
+CREATE TABLE anniversary.indexed_term (
     term_id                 UUID PRIMARY KEY,
-    policy_id               UUID NOT NULL REFERENCES policy (policy_id),
-    account_id              UUID NOT NULL REFERENCES policy_account (account_id),
+    policy_id               UUID NOT NULL REFERENCES policy.policy (policy_id),
+    account_id              UUID NOT NULL REFERENCES policy.policy_account (account_id),
     index_id                VARCHAR(64),       -- provenance ref to index_value (soft)
     contract_year           INTEGER,
     term_start_date         DATE,
@@ -375,20 +397,20 @@ CREATE TABLE indexed_term (
     credited_at             TIMESTAMP
 );
 
-CREATE TABLE reallocation_application (
+CREATE TABLE anniversary.reallocation_application (
     application_id            UUID PRIMARY KEY,
-    policy_id                 UUID NOT NULL REFERENCES policy (policy_id),
-    run_id                    UUID NOT NULL REFERENCES anniversary_run (run_id),
-    source_instruction_id     UUID REFERENCES pending_reallocation (instruction_id),  -- null = default
+    policy_id                 UUID NOT NULL REFERENCES policy.policy (policy_id),
+    run_id                    UUID NOT NULL REFERENCES anniversary.anniversary_run (run_id),
+    source_instruction_id     UUID REFERENCES servicing.pending_reallocation (instruction_id),  -- null = default
     anniversary_date          DATE,
     auto_rebalance_applied    BOOLEAN,
     held_premium_moved_minor  BIGINT
 );
 
-CREATE TABLE payout_simulation (
+CREATE TABLE anniversary.payout_simulation (
     simulation_id             UUID PRIMARY KEY,
-    policy_id                 UUID NOT NULL REFERENCES policy (policy_id),
-    run_id                    UUID NOT NULL REFERENCES anniversary_run (run_id),
+    policy_id                 UUID NOT NULL REFERENCES policy.policy (policy_id),
+    run_id                    UUID NOT NULL REFERENCES anniversary.anniversary_run (run_id),
     anniversary_date          DATE,
     basis                     VARCHAR(8),        -- SINGLE / JOINT
     assumed_election_age      INTEGER,
@@ -397,10 +419,10 @@ CREATE TABLE payout_simulation (
     mawb_minor                BIGINT
 );
 
-CREATE TABLE anniversary_statement (
+CREATE TABLE anniversary.anniversary_statement (
     statement_id         UUID PRIMARY KEY,
-    policy_id            UUID NOT NULL REFERENCES policy (policy_id),
-    run_id               UUID NOT NULL REFERENCES anniversary_run (run_id),
+    policy_id            UUID NOT NULL REFERENCES policy.policy (policy_id),
+    run_id               UUID NOT NULL REFERENCES anniversary.anniversary_run (run_id),
     anniversary_date     DATE,
     payload_ref          VARCHAR(256),      -- XML payload reference
     generated_at         TIMESTAMP,
