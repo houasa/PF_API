@@ -14,7 +14,18 @@ spike was evaluated and removed after compiled Java performed significantly bett
 |---|---|
 | `pas-common` | Shared value types: `Money` (BigDecimal-backed), `ProductVersion`, `GlwbOption`, `CalculationTrace`. No Spring. |
 | `product-engine` | Pure, deterministic engine (plain Java). `computePremiumBonus`. No Spring, no I/O. |
-| `pas-api` | Spring Boot host — single front door; wires the engine in-process. |
+| `pas-api` | Spring Boot host — single front door; wires the engine in-process; owns the DB (Flyway + H2). |
+
+## Database
+
+The contract data model (New Business + In-Force Year 1 + First-Year Anniversary,
+34 tables, per the ERD) is created by a **Flyway** baseline migration:
+`pas-api/src/main/resources/db/migration/V1__contract_data_model.sql`.
+
+Locally/tests it runs on **in-memory H2 in PostgreSQL-compatibility mode**, so the
+same migration script also applies to **Aurora PostgreSQL** (architecture §2/§6).
+Flyway runs automatically on app startup. Money is integer minor units (`*_minor`
+`BIGINT`); ledger/audit/calculation-trace remain in DynamoDB (out of scope here).
 
 ## Requirements
 - JDK 21 (architecture targets Java 25; realign later — see M4 in `docs/product-engine/spec-mismatches.md`)
@@ -49,5 +60,6 @@ calculation trace. OpenAPI/Swagger UI at `/swagger-ui.html`.
 - Decisions and cross-spec mismatches are tracked in `docs/product-engine/`.
 
 ## Out of scope (skeleton)
-Other engine ops; feature-module split; persistence (Aurora/DynamoDB); ledger/audit;
-Entra security; Docker/ECS; React SPAs; In-Force / Anniversary operations.
+Other engine ops; feature-module split; JPA entity mapping over the schema;
+DynamoDB ledger/audit; Entra security; Docker/ECS; React SPAs; the In-Force /
+Anniversary *operations* (the schema exists; the processing logic does not yet).
