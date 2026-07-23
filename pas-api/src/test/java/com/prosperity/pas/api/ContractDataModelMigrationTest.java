@@ -24,7 +24,8 @@ class ContractDataModelMigrationTest {
         Integer tableCount = jdbc.queryForObject(
                 "SELECT count(*) FROM information_schema.tables "
                         + "WHERE table_type = 'BASE TABLE' AND LOWER(table_schema) IN "
-                        + "('product_config','newbusiness','policy','servicing','anniversary')",
+                        + "('product_config','newbusiness','policy','servicing','anniversary') "
+                        + "AND LOWER(table_name) <> 'reserved_contract_number'",  // system work table (V2), not ERD
                 Integer.class);
         assertEquals(34, tableCount, "ERD defines 34 tables across the 5 module schemas");
     }
