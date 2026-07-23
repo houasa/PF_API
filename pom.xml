@@ -22,7 +22,6 @@
         <maven.compiler.release>21</maven.compiler.release>
         <!-- Architecture targets Java 25; env has JDK 21 (see docs M4). Realign when JDK 25 is available. -->
         <spring-boot.version>3.4.1</spring-boot.version>
-        <openl.version>5.27.15</openl.version>
         <springdoc.version>2.7.0</springdoc.version>
     </properties>
 
@@ -34,11 +33,6 @@
                 <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.openl.rules</groupId>
-                <artifactId>org.openl.rules</artifactId>
-                <version>${openl.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>

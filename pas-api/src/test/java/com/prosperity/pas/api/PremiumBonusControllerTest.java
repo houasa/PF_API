@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * End-to-end skeleton test: HTTP → Micro-PAS service → embedded OpenL Product Engine → response.
+ * End-to-end skeleton test: HTTP → Micro-PAS service → embedded Product Engine → response.
  * premium $231,000 (23100000 minor) → bonus 1848000 minor, AV 24948000 minor.
  */
 @SpringBootTest

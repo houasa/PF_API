@@ -8,7 +8,7 @@ import java.math.RoundingMode;
 /**
  * Versioned product configuration (the "data" half of the logic-vs-data split).
  * Pinned at issue; read by determinations. Rates/rounding live here, never as
- * literals in code or in the OpenL table.
+ * literals in code.
  */
 public record ProductConfig(
         ProductVersion version,

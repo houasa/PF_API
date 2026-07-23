@@ -5,14 +5,15 @@ Decision A1). This is a **walking skeleton**: one thin vertical slice through th
 whole stack — HTTP → Micro-PAS service → Product Engine → value + calculation
 trace — for a single operation, **New Business PE-4 `computePremiumBonus`**.
 
-The engine calculation is a **spike** of **OpenL Tablets** (a Spreadsheet table),
-evaluating it against architecture Decision B1 (see `docs/product-engine/`).
+The engine is plain compiled Java (architecture **Decision B1**). An OpenL Tablets
+spike was evaluated and removed after compiled Java performed significantly better
+(see M5 in `docs/product-engine/spec-mismatches.md`).
 
 ## Modules
 | Module | Role |
 |---|---|
 | `pas-common` | Shared value types: `Money` (BigDecimal-backed), `ProductVersion`, `GlwbOption`, `CalculationTrace`. No Spring. |
-| `product-engine` | Pure, deterministic engine. OpenL-backed `computePremiumBonus`. No Spring, no I/O. |
+| `product-engine` | Pure, deterministic engine (plain Java). `computePremiumBonus`. No Spring, no I/O. |
 | `pas-api` | Spring Boot host — single front door; wires the engine in-process. |
 
 ## Requirements

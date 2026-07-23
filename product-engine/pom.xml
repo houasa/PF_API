@@ -12,16 +12,12 @@
 
     <artifactId>product-engine</artifactId>
     <name>PathWay Max — Micro-Product Engine</name>
-    <description>Pure, deterministic calculator. OpenL-backed (spike). No Spring, no I/O.</description>
+    <description>Pure, deterministic calculator. Plain Java (Decision B1). No Spring, no I/O.</description>
 
     <dependencies>
         <dependency>
             <groupId>com.prosperity.pas</groupId>
             <artifactId>pas-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.openl.rules</groupId>
-            <artifactId>org.openl.rules</artifactId>
         </dependency>
 
         <dependency>

@@ -1,7 +1,6 @@
 package com.prosperity.pas.engine;
 
 import com.prosperity.pas.common.Money;
-import com.prosperity.pas.common.ProductVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -11,17 +10,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Spike verification: OpenL computes the premium bonus in BigDecimal (M1) and the
- * result carries a usable calculation trace. Worked example from New Business FRD §6:
+ * Plain-Java engine verification. Worked example from New Business FRD §6:
  * premium $231,000 → bonus 8% $18,480 → Accumulation Value $249,480.
  */
-class OpenlProductEngineTest {
+class DefaultProductEngineTest {
 
     private static ProductEngine engine;
 
     @BeforeAll
     static void setUp() {
-        engine = new OpenlProductEngine(OpenlRules.load(), new ProductConfigProvider());
+        engine = new DefaultProductEngine(new ProductConfigProvider());
     }
 
     @Test

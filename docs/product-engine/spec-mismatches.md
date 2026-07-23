@@ -31,25 +31,22 @@ Status legend: 🔴 open · 🟡 proposed · 🟢 decided
 - **Action:** realign to Java 25 when a JDK 25 toolchain is available (bump the
   parent `maven.compiler.release`).
 
-## M5 — Rules representation: OpenL spike vs Decision B1 🟡 SPIKING
+## M5 — Rules representation: OpenL spike vs Decision B1 🟢 DECIDED (B1 upheld)
 - Architecture **Decision B1** chose typed config + plain Java evaluators and
   rejected embedded rules engines (Drools/KIE; OpenL is the same category).
-- **User direction (2026-07-22):** spike **OpenL Tablets** on the simplest op
-  before committing. Implemented in the walking skeleton: `computePremiumBonus`
-  is backed by an OpenL **Spreadsheet** table (`product-engine/.../rules/PremiumBonus.xlsx`).
-- **Spike outcome so far (positive):**
-  - Computes the FRD worked example correctly ($231,000 → bonus $18,480 → AV $249,480).
-  - Confirmed **BigDecimal** arithmetic (M1 honored) — engine asserts the OpenL
-    result type is `BigDecimal`, not `double`; wire value `18480.0000`.
-  - `SpreadsheetResult` rows map cleanly to `CalculationTrace.intermediateFigures`.
-  - Authoring note: leading-`=` step cells must be stored as **text** in the
-    `.xlsx` (openpyxl otherwise writes an Excel formula whose cached value is null
-    and OpenL reads null). Generator forces `data_type='s'`.
-  - `ProductEngine` interface stays plain, so the OpenL impl (`OpenlProductEngine`)
-    is swappable for a plain-Java impl with zero `pas-api` change if the spike is
-    rejected at scale.
-- **Still open:** whether OpenL earns its keep across all ops (ergonomics/weight
-  vs plain Java); this is a per-op-scaling decision, not settled by one op.
+- **Spike (2026-07-22):** OpenL Tablets was spiked on `computePremiumBonus`
+  (Spreadsheet table, BigDecimal-typed). It worked — correct FRD result, BigDecimal
+  arithmetic (M1 honored), `SpreadsheetResult` mapped to the trace.
+- **DECISION (2026-07-22, user): revert to plain compiled Java; remove OpenL.**
+  Compiled Java performed significantly better (no workbook compile/startup cost,
+  ~0.08s vs ~0.55s engine test), so **Decision B1 is upheld**. OpenL fully removed:
+  `OpenlProductEngine`, `OpenlRules`, `PremiumBonusRules`, `rules/PremiumBonus.xlsx`,
+  and the `org.openl.rules` dependency are gone. The engine is now
+  `DefaultProductEngine` — a direct BigDecimal computation.
+- The `ProductEngine` interface was unchanged by the swap, so `pas-api` and the
+  API contract were untouched — exactly the reversibility the interface was there to
+  provide. Revisit only if governed, runtime business-rule authoring without a
+  deploy becomes a hard requirement.
 
 ## M3 — Per-domain PE-n numbering collision 🟡
 - Both specs number calls `PE-1…PE-n` scoped to their own domain (e.g. NB PE-1 = `resolveProductConfigVersion`, IFY1 PE-1 = `computeRiderCharge`).
