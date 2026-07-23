@@ -14,6 +14,10 @@
     <modules>
         <module>pas-common</module>
         <module>product-engine</module>
+        <module>pas-newbusiness</module>
+        <module>pas-policy</module>
+        <module>pas-servicing</module>
+        <module>pas-anniversary</module>
         <module>pas-api</module>
     </modules>
 
@@ -48,6 +52,26 @@
             <dependency>
                 <groupId>com.prosperity.pas</groupId>
                 <artifactId>product-engine</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.prosperity.pas</groupId>
+                <artifactId>pas-newbusiness</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.prosperity.pas</groupId>
+                <artifactId>pas-policy</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.prosperity.pas</groupId>
+                <artifactId>pas-servicing</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.prosperity.pas</groupId>
+                <artifactId>pas-anniversary</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

@@ -10,11 +10,21 @@ spike was evaluated and removed after compiled Java performed significantly bett
 (see M5 in `docs/product-engine/spec-mismatches.md`).
 
 ## Modules
-| Module | Role |
-|---|---|
-| `pas-common` | Shared value types: `Money` (BigDecimal-backed), `ProductVersion`, `GlwbOption`, `CalculationTrace`. No Spring. |
-| `product-engine` | Pure, deterministic engine (plain Java). `computePremiumBonus`. No Spring, no I/O. |
-| `pas-api` | Spring Boot host — single front door; wires the engine in-process; owns the DB (Flyway + H2). |
+
+Maven multi-module (`pas-api → domain modules → product-engine → pas-common`):
+
+| Module | Role | Deps |
+|---|---|---|
+| `pas-common` | Shared value types: `Money` (BigDecimal-backed), `ProductVersion`, `GlwbOption`, `CalculationTrace`. No Spring. | — |
+| `product-engine` | Pure, deterministic engine (plain Java): `computePremiumBonus`. Owns the `product_config` entity (JPA annotations only). No Spring, no I/O. | pas-common, jakarta.persistence-api |
+| `pas-newbusiness` | `newbusiness` schema entities (TX103 submission). | jakarta.persistence-api |
+| `pas-policy` | `policy` schema: policy record, parties, elections, accounts — entities + repositories. | jakarta.persistence-api, spring-data-jpa |
+| `pas-servicing` | `servicing` schema: In-Force Year 1 accrual/servicing entities. | jakarta.persistence-api |
+| `pas-anniversary` | `anniversary` schema: anniversary run & output entities + repositories. | jakarta.persistence-api, spring-data-jpa |
+| `pas-api` | Spring Boot host — single front door; wires the engine in-process; owns the Flyway migration + datasource; depends on all domain modules. | all of the above + web/jpa/flyway/h2 |
+
+Domain modules are compile-independent (FKs are plain UUID columns, not JPA
+associations), so none depends on another; `pas-api` composes them.
 
 ## Database
 

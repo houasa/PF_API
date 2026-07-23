@@ -10,26 +10,18 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>product-engine</artifactId>
-    <name>PathWay Max — Micro-Product Engine</name>
-    <description>Pure, deterministic calculator. Plain Java (Decision B1). No Spring, no I/O.</description>
+    <artifactId>pas-policy</artifactId>
+    <name>PathWay Max — Policy domain (system of record)</name>
+    <description>Policy schema: policy record, parties, elections, accounts — entities and repositories.</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.prosperity.pas</groupId>
-            <artifactId>pas-common</artifactId>
-        </dependency>
-        <!-- JPA annotations only, for the product_config entity this module owns.
-             The calculation code stays pure; no Spring, no runtime I/O here. -->
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
         </dependency>
     </dependencies>
 </project>
